@@ -4706,7 +4706,7 @@ def handle_file_selection(call):
                  platform_emoji=platform_emoji_str,
                  country_name=name)
     try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
+        bot.send_message(call.message.chat.id, call.message.message_id)
     except:
         pass
     _send_number_msg(call.message.chat.id, msg_text, assigned, file_id, user_id, country_code=country_code, platform_name=platform_name)
