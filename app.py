@@ -4613,7 +4613,7 @@ def show_files_for_country(call):
     back_cb = f"platform_{sid}" if sid is not None else "show_platforms"
     markup.add(types.InlineKeyboardButton(t("back_to_platforms", user_id), callback_data=back_cb, icon_custom_emoji_id="5433757980245900289", style="success"))
     name, flag, _ = COUNTRY_CODES.get(country_code, ("Unknown", "🌍", ""))
-    safe_edit_or_delete(call, t("choose_file_for", user_id, country=f"{flag} {name}"), markup=markup)
+    send_message(call, t("choose_file_for", user_id, country=f"{flag} {name}"), markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("file_"))
 def handle_file_selection(call):
@@ -4706,7 +4706,7 @@ def handle_file_selection(call):
                  platform_emoji=platform_emoji_str,
                  country_name=name)
     try:
-        bot.send_message(call.message.chat.id, call.message.message_id)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
     except:
         pass
     _send_number_msg(call.message.chat.id, msg_text, assigned, file_id, user_id, country_code=country_code, platform_name=platform_name)
