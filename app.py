@@ -179,11 +179,11 @@ from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 DB_PATH = "sendako.db"
-BOT_TOKEN = ""
-CHAT_IDS = [""]
-ADMIN_IDS = []
+BOT_TOKEN = "8736897063:AAFyzy-SN7-GIPPZJj7ofwKnVihNj_LTQi0"
+CHAT_IDS = ["-1003991110285"]
+ADMIN_IDS = [1574411746]
 
-REFRESH_INTERVAL = 1
+REFRESH_INTERVAL = 5
 PARALLEL_FETCH = True
 MAX_WORKERS = 50
 
@@ -327,8 +327,8 @@ STATIC_DASHBOARDS = [
         "login_page": "/ints/login",
         "login_post": "/ints/signin",
         "ajax_path": "/ints/agent/res/data_smscdr.php",
-        "username": "",
-        "password": "",
+        "username": "dindaaa",
+        "password": "dindaaa",
         "short": "LM", "short_bold": to_bold("WS"),
         "source": "static", "idx_date": 0, "idx_number": 2, "idx_sms": 5,
         "timeout": 10, "refresh_interval": 1,
