@@ -4626,14 +4626,10 @@ def handle_file_selection(call):
         getattr(call.message, 'document', None)
     )
     if not has_media:
-        loading_text = (
-            f"🔄 جاري التحميل..."
-            if lang == "ar" else
-            f"🔄 Loading..."
-        )
+        loading_text = "🔄 جاري التحميل..." if lang == "ar" else "🔄 Loading..."
         try:
             bot.edit_message_text(loading_text, chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, parse_mode="HTML")
+                                  message_id=call.message_id, parse_mode="HTML")
         except:
             pass
     else:
@@ -4641,6 +4637,7 @@ def handle_file_selection(call):
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except:
             pass
+
     file_id = int(call.data.split("_")[1])
     available = get_available_numbers_from_file(file_id)
     if not available:
@@ -4657,6 +4654,7 @@ def handle_file_selection(call):
         _nm = "لا يوجد أرقام كافية!" if _nl == "ar" else "Not enough numbers available!"
         bot.answer_callback_query(call.id, _nm, show_alert=True)
         return
+
     assigned = random.choice(available)
     old_user = get_user(user_id)
     if old_user and old_user[5]:
@@ -4678,6 +4676,7 @@ def handle_file_selection(call):
         save_combo_tag_for_number(assigned, _assigned_tag, price=_assigned_price)
     elif _assigned_price > 0:
         save_combo_tag_for_number(assigned, "", price=_assigned_price)
+
     conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10)
     c = conn.cursor()
     c.execute("SELECT country_code, file_name FROM combos WHERE id=?", (file_id,))
@@ -4695,22 +4694,31 @@ def handle_file_selection(call):
     if section_id:
         sections = get_all_sections()
         platform_name = next((n for i, n in sections if i == section_id), "Unknown")
+
     save_user(user_id, country_code=country_code, assigned_number=assigned)
     name, flag, _ = COUNTRY_CODES.get(country_code, ("Unknown", "🌍", ""))
     flag_emoji_id = _extract_flag_emoji_id(flag)
     platform_emoji_id = get_platform_emoji_id(platform_name) or "5406745015365943482"
     country_flag_emoji = f"{get_flag_plain(flag)}" if flag_emoji_id else get_flag_plain(flag)
     platform_emoji_str = f"🌐"
+
+    # LINE 4711 - INI BAGIAN YANG DIUBAH
     msg_text = t("number_selected", user_id,
                  country_flag_emoji=country_flag_emoji,
                  platform_emoji=platform_emoji_str,
-                 country_name=name)
+                 country_name=name,
+                 platform_name=platform_name) # <-- TAMBAH platform_name
+
+    # PENGAMAN: kalau translate gagal
+    if not msg_text:
+        msg_text = f"{country_flag_emoji} <b>{name}</b>\n{platform_emoji_str} <b>{platform_name}</b>\n\nNomor kamu sudah dipilih"
+
     try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
+        bot.delete_message(call.message.chat.id, call.message_id)
     except:
         pass
-    _send_number_msg(call.message.chat.id, msg_text, assigned, file_id, user_id, country_code=country_code, platform_name=platform_name)
 
+    _send_number_msg(call.message.chat.id, msg_text, assigned, file_id, user_id, country_code=country_code, platform_name=platform_name)
 @bot.callback_query_handler(func=lambda call: call.data.startswith("change_num_"))
 def change_number(call):
     user_id = call.from_user.id
@@ -8921,6 +8929,13 @@ def _make_colored_btn(text, color=None, **kwargs):
 
 def _send_number_msg(chat_id, text, number, file_id, user_id, country_code=None, platform_name=None, parse_mode="HTML"):
     import json as _json
+    import sqlite3
+    import random
+
+    # 1. PENGAMAN: kalau text None
+    if not text:
+        name, flag, _ = COUNTRY_CODES.get(country_code, ("Unknown", "🌍", ""))
+        text = f"Nomor: <code>{number}</code>\nNegara: {flag} {name}\nPlatform: {platform_name or '-'}"
 
     flag_emoji_id = None
     if country_code and country_code in COUNTRY_CODES:
@@ -8928,7 +8943,7 @@ def _send_number_msg(chat_id, text, number, file_id, user_id, country_code=None,
         flag_emoji_id = _extract_flag_emoji_id(flag)
 
     available = get_available_numbers_from_file(file_id)
-    other_numbers = [n for n in available if str(n) != str(number)]
+    other_numbers = [n for n in available if str(n)!= str(number)]
     random.shuffle(other_numbers)
     nums_pool = [number] + other_numbers
     nums_to_show = nums_pool[:4]
@@ -8987,10 +9002,36 @@ def _send_number_msg(chat_id, text, number, file_id, user_id, country_code=None,
 
     keyboard = {"inline_keyboard": number_rows + bottom_rows}
 
-    import re as _re
+    # 2. BARU PARSE DI SINI - line 9055
+    plain_text, ent_list = _parse_html_to_entities(text) # ini yg tadi error
 
-    def _parse_html_to_entities(html):
-        html = html.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+    payload = {
+        "chat_id": chat_id,
+        "text": plain_text,
+        "reply_markup": keyboard,
+        "entities": ent_list,
+    }
+    try:
+        r = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=payload, timeout=15
+        )
+        if r.status_code!= 200:
+            err = r.text
+            print(f"[number_msg] ❌ {r.status_code}: {err}")
+            for admin in ADMIN_IDS:
+                try:
+                    bot.send_message(admin, f"❌ number_msg error:\n<code>{err[:500]}</code>", parse_mode="HTML")
+                except:
+                    pass
+        return r.status_code == 200
+    except Exception as e:
+        print(f"[number_msg] ⚠️ {e}")
+        return False
+def _parse_html_to_entities(html):
+        if html is None: # <-- TAMBAH INI
+            html = ""
+        html = str(html).replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">") # <-- str() biar aman
 
         plain = ""
         entities = []
@@ -9013,9 +9054,9 @@ def _send_number_msg(chat_id, text, number, file_id, user_id, country_code=None,
 
             offset = len(plain.encode("utf-16-le")) // 2
 
-            if m.group(1) is not None:
+            if m.group(1) is not None: # custom_emoji
                 emoji_id = m.group(1)
-                fallback = m.group(2)
+                fallback = m.group(2) or "" # <-- FIX: kasih default ""
                 fallback = _re.sub(r'<[^>]+>', '', fallback)
                 length = len(fallback.encode("utf-16-le")) // 2
                 if length > 0:
@@ -9027,23 +9068,25 @@ def _send_number_msg(chat_id, text, number, file_id, user_id, country_code=None,
                     })
                 plain += fallback
 
-            elif m.group(3) is not None or m.group(4) is not None:
+            elif m.group(3) is not None or m.group(4) is not None: # bold
                 inner = m.group(3) if m.group(3) is not None else m.group(4)
+                inner = inner or "" # <-- FIX: kasih default ""
                 inner = _re.sub(r'<[^>]+>', '', inner)
                 length = len(inner.encode("utf-16-le")) // 2
                 if length > 0:
                     entities.append({"type": "bold", "offset": offset, "length": length})
                 plain += inner
 
-            elif m.group(5) is not None:
-                inner = m.group(5)
+            elif m.group(5) is not None: # code
+                inner = m.group(5) or "" # <-- FIX: kasih default ""
                 length = len(inner.encode("utf-16-le")) // 2
                 if length > 0:
                     entities.append({"type": "code", "offset": offset, "length": length})
                 plain += inner
 
-            elif m.group(6) is not None:
-                inner = _re.sub(r'<[^>]+>', '', m.group(6))
+            elif m.group(6) is not None: # blockquote
+                inner = m.group(6) or "" # <-- FIX: kasih default ""
+                inner = _re.sub(r'<[^>]+>', '', inner)
                 length = len(inner.encode("utf-16-le")) // 2
                 if length > 0:
                     entities.append({"type": "blockquote", "offset": offset, "length": length})
