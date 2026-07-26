@@ -3,7 +3,7 @@ import io
 import re
 import json
 import html
-import os  # <--- Webhook & PORT এর জন্য ইম্পোর্ট যোগ করা হয়েছে
+import os  # <--- Added import for Webhook & PORT
 import httpx
 import pyotp
 import random
@@ -374,7 +374,7 @@ def add_required_channel(link, label=None, chat_id=None):
     channels = load_required_channels()
     for ch in channels:
         if ch.get("link") == link:
-            return False, "এই লিংক ইতিমধ্যে আছে।"
+            return False, "This link already exists."
     if not label:
         label = link.replace("https://t.me/", "").replace("@", "")
         if label.startswith("+"):
@@ -391,10 +391,10 @@ def add_required_channel(link, label=None, chat_id=None):
         if username_match:
             entry["username"] = username_match.group(1)
         else:
-            return False, "লিংক থেকে চ্যাট আইডি বের করা যায়নি। অনুগ্রহ করে চ্যাট আইডি সহ যোগ করুন অথবা সঠিক লিংক দিন।"
+            return False, "Could not extract chat ID from link. Please add with chat ID or provide a valid link."
     channels.append(entry)
     save_required_channels(channels)
-    return True, "সফলভাবে যোগ করা হয়েছে।"
+    return True, "Successfully added."
 
 def remove_required_channel(link_or_label):
     channels = load_required_channels()
@@ -407,8 +407,8 @@ def remove_required_channel(link_or_label):
         new_channels.append(ch)
     if removed:
         save_required_channels(new_channels)
-        return True, "সরানো হয়েছে।"
-    return False, "কোনো ম্যাচ পাওয়া যায়নি।"
+        return True, "Removed successfully."
+    return False, "No matching channel found."
 
 def get_all_required_channels():
     return load_required_channels()
@@ -435,9 +435,9 @@ async def check_user_joined(bot, user_id, channel_entry):
                         break
                 save_required_channels(channels)
             else:
-                return False, f"❌ চ্যাট আইডি বের করা যায়নি: {channel_entry.get('link')}"
+                return False, f"❌ Could not resolve chat ID: {channel_entry.get('link')}"
     if not chat_id:
-        return False, f"❌ চ্যাট আইডি অনুপস্থিত: {channel_entry.get('link')}"
+        return False, f"❌ Missing chat ID: {channel_entry.get('link')}"
 
     try:
         member = await bot.get_chat_member(chat_id, user_id)
@@ -446,7 +446,7 @@ async def check_user_joined(bot, user_id, channel_entry):
         else:
             return False, None
     except TelegramError as e:
-        return False, f"⚠️ বট চেক করতে পারেনি: {str(e)[:100]}"
+        return False, f"⚠️ Bot could not check membership: {str(e)[:100]}"
 
 async def verify_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -455,7 +455,7 @@ async def verify_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     channels = load_required_channels()
     if not channels:
-        await query.edit_message_text("✅ কোনো চেক করার চ্যানেল নেই। আপনি সরাসরি ব্যবহার করতে পারেন।")
+        await query.edit_message_text("✅ No channels to check. You can use the bot directly.")
         await show_main_menu(update, context, uid)
         return
 
@@ -466,8 +466,8 @@ async def verify_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             failed.append(ch.get("label", ch.get("link", "Unknown")))
 
     if failed:
-        msg = "❌ **ভেরিফিকেশন ব্যর্থ!**\n\nআপনি নিচের চ্যানেল/গ্রুপগুলোতে জয়েন করেননি:\n" + "\n".join(f"• {label}" for label in failed)
-        msg += "\n\nজয়েন করার পর আবার **Verify** বাটন ক্লিক করুন।"
+        msg = "❌ **Verification Failed!**\n\nYou have not joined the following channels/groups:\n" + "\n".join(f"• {label}" for label in failed)
+        msg += "\n\nPlease join them and click **Verify** again."
         await query.edit_message_text(msg, parse_mode="Markdown")
         return
 
@@ -477,7 +477,7 @@ async def verify_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     all_data[str(uid)] = user_data
     save_data(all_data)
 
-    await query.edit_message_text("✅ **ভেরিফিকেশন সম্পূর্ণ!**\n\nআপনি এখন বটের সব ফিচার ব্যবহার করতে পারবেন।")
+    await query.edit_message_text("✅ **Verification Complete!**\n\nYou can now use all features of the bot.")
     await show_main_menu(update, context, uid)
 
 # ==================== ASYNC HELPERS ====================
@@ -749,7 +749,7 @@ def required_channels_keyboard():
 
 def fake_otp_keyboard():
     config = load_fake_otp_config()
-    status = "✅ চালু" if config.get("running", False) else "❌ বন্ধ"
+    status = "✅ Running" if config.get("running", False) else "❌ Stopped"
     keyboard = [
         [KeyboardButton(f"📊 STATUS: {status}")],
         [KeyboardButton("▶️ START")],
@@ -987,7 +987,7 @@ async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         msg = (
             "<b>🏆 TOP 10 OTP LEADERBOARD 🏆</b>\n"
             "━━━━━━━━━━━━━━━━━━━━\n\n"
-            "❌ আজ পর্যন্ত কেউ OTP পায়নি।\n"
+            "❌ No OTP received today yet.\n"
         )
     else:
         msg = (
@@ -1006,7 +1006,7 @@ async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             msg += f"{medal} <b>{name}</b>\n   🔑 <code>{count}</code> OTPs\n\n"
         msg += (
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "📊 <i>প্রতিদিন রাত ১২টায় রিসেট হয়</i>"
+            "📊 <i>Resets daily at 12:00 AM</i>"
         )
     await update.message.reply_text(msg, parse_mode="HTML", reply_markup=main_keyboard(uid))
 
@@ -1116,7 +1116,7 @@ def _build_countries_keyboard(ranges, service):
             }
     if not country_map:
         keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("❌ কোন দেশ উপলব্ধ নেই", callback_data="back_services", style="danger")
+            InlineKeyboardButton("❌ No country available", callback_data="back_services", style="danger")
         ]])
         return keyboard
     
@@ -1148,17 +1148,16 @@ async def show_app_selection(update, context):
     services = await fetch_services_cached()
     if not services:
         await update.message.reply_text(
-            "⚠️ <b>কোনো সার্ভিস উপলব্ধ নেই</b>\n⏳ কিছুক্ষণ পর আবার চেষ্টা করুন।",
+            "⚠️ <b>No services available</b>\n⏳ Please try again later.",
             parse_mode="HTML",
             reply_markup=main_keyboard(uid)
         )
         return
-    # ===== UPDATED: এখন ৪টি সার্ভিস দেখাবে: facebook, instagram, whatsapp, telegram =====
     allowed = ["facebook", "instagram", "whatsapp", "telegram"]
     filtered_services = {k: v for k, v in services.items() if k in allowed}
     if not filtered_services:
         await update.message.reply_text(
-            "⚠️ <b>কোনো সার্ভিস উপলব্ধ নেই</b>\n⏳ কিছুক্ষণ পর আবার চেষ্টা করুন।",
+            "⚠️ <b>No services available</b>\n⏳ Please try again later.",
             parse_mode="HTML",
             reply_markup=main_keyboard(uid)
         )
@@ -1167,7 +1166,7 @@ async def show_app_selection(update, context):
     keyboard = _build_services_keyboard(filtered_services)
     await update.message.reply_text(
         "📡✨ 𝗦𝗘𝗟𝗘𝗖𝗧 𝗬𝗢𝗨𝗥 𝗦𝗘𝗥𝗩𝗜𝗖𝗘 ✨📡\n\n"
-        "<blockquote>✨ নিচ থেকে আপনার পছন্দের <b>Service</b> নির্বাচন করুন:</blockquote>",
+        "<blockquote>✨ Select your preferred <b>Service</b> below:</blockquote>",
         parse_mode="HTML",
         reply_markup=keyboard
     )
@@ -1227,7 +1226,7 @@ async def monitor_loop(app):
                         safe_full_sms = html.escape(str(full_sms))
                         safe_otp_code = html.escape(str(otp_code))
                         if is_free_service:
-                            balance_msg = "⚠️ এই OTP‑তে কোনো টাকা যোগ করা হবে না (Telegram/WhatsApp)"
+                            balance_msg = "⚠️ No balance added for this OTP (Telegram/WhatsApp)"
                         else:
                             user_rate = get_user_otp_rate(uid)
                             balance_msg = f"💵 ADD BALANCE FOR {user_rate:.2f} BDT"
@@ -1252,8 +1251,8 @@ async def monitor_loop(app):
                         )
                         group_buttons = InlineKeyboardMarkup([
                             [
-                                InlineKeyboardButton("‼️ PANEL", url="https://t.me/VoltXSMS1Bot", style="danger"),
-                                InlineKeyboardButton("📢 CHANNEL", url="https://t.me/hunterxvoltx", style="success")
+                                InlineKeyboardButton("‼️ PANEL", url="https://t.me/StexotpDin_bot", style="danger"),
+                                InlineKeyboardButton("📢 CHANNEL", url="https://t.me/Mypwni", style="success")
                             ]
                         ])
                         try:
@@ -1278,7 +1277,6 @@ async def monitor_loop(app):
 
 # ==================== FAKE OTP LOOP ====================
 async def fake_otp_loop(app):
-    """Background task to generate fake OTPs based on config."""
     while True:
         try:
             config = load_fake_otp_config()
@@ -1354,8 +1352,8 @@ async def fake_otp_loop(app):
                 
                 group_buttons = InlineKeyboardMarkup([
                     [
-                        InlineKeyboardButton("‼️ PANEL", url="https://t.me/VoltXSMS1Bot", style="danger"),
-                        InlineKeyboardButton("📢 CHANNEL", url="https://t.me/hunterxvoltx", style="success")
+                        InlineKeyboardButton("‼️ PANEL", url="https://t.me/StexotpDin_bot", style="danger"),
+                        InlineKeyboardButton("📢 CHANNEL", url="https://t.me/Mypwni", style="success")
                     ]
                 ])
                 
@@ -1385,9 +1383,9 @@ async def fast_allocate_number(query, context, rid, service, range_display):
         return
     if not num:
         await query.message.edit_text(
-            "❌ <b>Number পাওয়া যায়নি।</b>\n\n"
-            "<blockquote>⚠️ এই range-এ এখন number নেই বা server busy।\n"
-            "আরেকটি range চেষ্টা করুন।</blockquote>",
+            "❌ <b>Number not found.</b>\n\n"
+            "<blockquote>⚠️ No numbers available in this range or server is busy.\n"
+            "Please try another range.</blockquote>",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 BACK", callback_data="back_services", style="danger")
@@ -1509,7 +1507,7 @@ async def process_numbers(update_or_query, context, range_text, count, service="
         svc = service if service else "CUSTOM"
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🔄 SAME RANGE", callback_data=f"same_range_{rid}_{svc}", style="success")],
-            [InlineKeyboardButton("📢 OTP GROUP", url="https://t.me/Davil_Otp_Group", style="primary")],
+            [InlineKeyboardButton("📢 OTP GROUP", url="https://t.me/maxgunsotp", style="primary")],
             [InlineKeyboardButton("◀️ BACK", callback_data="back_to_services")]
         ])
         await status_msg.edit_text(final_text, parse_mode="HTML", reply_markup=keyboard)
@@ -1561,7 +1559,7 @@ async def perform_otp_search(update, context, target_num):
                             add_otp_received(uid)
                             payment_status = f"💵 ADD BALANCE FOR {user_rate:.2f} BDT"
                         else:
-                            payment_status = "⚠️ এই OTP‑তে কোনো টাকা যোগ করা হয়নি (Telegram/WhatsApp)"
+                            payment_status = "⚠️ No balance added for this OTP (Telegram/WhatsApp)"
                         paid_data[key] = {"uid": uid, "otp": otp_code}
                     save_data(paid_data, PAID_SMS_FILE)
                     country_flag, country_name = get_country_info(target_num)
@@ -1629,7 +1627,7 @@ async def withdraw_method_selected(update: Update, context: ContextTypes.DEFAULT
         method = method_map[text]
         config = load_system_config()
         if not config["payment_methods"].get(method, False):
-            await update.message.reply_text("⚠️ এই মেথড বর্তমানে বন্ধ আছে। অন্য মেথড নির্বাচন করুন।", reply_markup=withdraw_method_keyboard())
+            await update.message.reply_text("⚠️ This method is currently disabled. Please select another method.", reply_markup=withdraw_method_keyboard())
             return
         balance = get_user(uid)['balance']
         context.user_data["withdraw_method"] = method
@@ -1972,7 +1970,7 @@ async def show_banned_users_list(update, context):
 # ==================== ADMIN PANEL - SYSTEM CONFIG ====================
 async def admin_change_min_withdraw_start(update, context):
     context.user_data["admin_min_withdraw_mode"] = True
-    await update.message.reply_text("💵 সেন্ড দ্য নিউ মিনিমাম উইথড্র অ্যামাউন্ট (শুধু সংখ্যা):\n\nবর্তমান মান: " + str(load_system_config()["min_withdraw"]), reply_markup=cancel_keyboard())
+    await update.message.reply_text("💵 Send the new minimum withdraw amount (numbers only):\n\nCurrent value: " + str(load_system_config()["min_withdraw"]), reply_markup=cancel_keyboard())
 
 async def admin_change_min_withdraw_amount(update, context):
     if not context.user_data.get("admin_min_withdraw_mode"):
@@ -1982,9 +1980,9 @@ async def admin_change_min_withdraw_amount(update, context):
         if new_min < 0:
             raise ValueError
         update_min_withdraw(new_min)
-        await update.message.reply_text(f"✅ মিনিমাম উইথড্র অ্যামাউন্ট পরিবর্তন করে {new_min} BDT করা হয়েছে।", reply_markup=system_config_keyboard())
+        await update.message.reply_text(f"✅ Minimum withdraw amount updated to {new_min} BDT.", reply_markup=system_config_keyboard())
     except:
-        await update.message.reply_text("❌ ভ্যালিড অ্যামাউন্ট দিন।", reply_markup=system_config_keyboard())
+        await update.message.reply_text("❌ Please enter a valid amount.", reply_markup=system_config_keyboard())
     finally:
         context.user_data["admin_min_withdraw_mode"] = False
 
@@ -1992,7 +1990,7 @@ async def admin_change_otp_rate_start(update, context):
     context.user_data["admin_otp_rate_mode"] = True
     current_rate = get_otp_rate()
     await update.message.reply_text(
-        f"💲 বর্তমান OTP রেট: `{current_rate:.2f} BDT`\n\nসেন্ড দ্য নিউ রেট (শুধু সংখ্যা, যেমন: `0.25`):\n\n<blockquote>সাবধান: এটি সব নতুন OTP-তে প্রযোজ্য হবে।</blockquote>",
+        f"💲 Current OTP rate: `{current_rate:.2f} BDT`\n\nSend the new rate (numbers only, e.g., `0.25`):\n\n<blockquote>Note: This will apply to all new OTPs.</blockquote>",
         parse_mode="HTML",
         reply_markup=cancel_keyboard()
     )
@@ -2005,9 +2003,9 @@ async def admin_change_otp_rate_amount(update, context):
         if new_rate <= 0:
             raise ValueError
         update_otp_rate(new_rate)
-        await update.message.reply_text(f"✅ OTP রেট পরিবর্তন করে `{new_rate:.2f} BDT` করা হয়েছে।\n\nনতুন OTP গুলো এই হারে যুক্ত হবে।", parse_mode="HTML", reply_markup=system_config_keyboard())
+        await update.message.reply_text(f"✅ OTP rate updated to `{new_rate:.2f} BDT`.\n\nNew OTPs will be credited at this rate.", parse_mode="HTML", reply_markup=system_config_keyboard())
     except:
-        await update.message.reply_text("❌ ভ্যালিড রেট দিন (যেমন: 0.25)।", reply_markup=system_config_keyboard())
+        await update.message.reply_text("❌ Please enter a valid rate (e.g., 0.25).", reply_markup=system_config_keyboard())
     finally:
         context.user_data["admin_otp_rate_mode"] = False
 
@@ -2016,7 +2014,7 @@ async def admin_set_user_otp_rate_start(update, context):
     context.user_data["admin_set_otp_rate_mode"] = "user"
     await update.message.reply_text(
         "🔧 **SET USER OTP RATE**\n\n"
-        "দয়া করে ইউজার আইডি ইনপুট দিন (শুধু সংখ্যা):",
+        "Please enter the User ID (numbers only):",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard()
     )
@@ -2025,24 +2023,24 @@ async def admin_set_user_otp_rate_user(update, context):
     uid_str = update.message.text.strip()
     if uid_str == "❌ CANCEL":
         context.user_data["admin_set_otp_rate_mode"] = None
-        await update.message.reply_text("❌ অপারেশন বাতিল করা হয়েছে।", reply_markup=system_config_keyboard())
+        await update.message.reply_text("❌ Operation cancelled.", reply_markup=system_config_keyboard())
         return
     if not uid_str.isdigit():
-        await update.message.reply_text("❌ ভ্যালিড ইউজার আইডি দিন (শুধু সংখ্যা)!", reply_markup=cancel_keyboard())
+        await update.message.reply_text("❌ Please enter a valid User ID (numbers only)!", reply_markup=cancel_keyboard())
         return
     uid_int = int(uid_str)
     if not user_exists(uid_int):
-        await update.message.reply_text("❌ এই ইউজারটি রেজিস্টার্ড নয়। আবার চেষ্টা করুন।", reply_markup=cancel_keyboard())
+        await update.message.reply_text("❌ This user is not registered. Try again.", reply_markup=cancel_keyboard())
         return
     context.user_data["admin_set_otp_rate_user"] = uid_int
     context.user_data["admin_set_otp_rate_mode"] = "rate"
     current_rate = get_user_otp_rate(uid_int)
     global_rate = get_otp_rate()
     await update.message.reply_text(
-        f"বর্তমান ইউজার রেট: `{current_rate:.2f} BDT`\n"
-        f"গ্লোবাল রেট: `{global_rate:.2f} BDT`\n\n"
-        "নতুন রেট ইনপুট দিন (শুধু সংখ্যা, যেমন: 0.25):\n"
-        "রেট 0 দিলে কাস্টম রেট মুছে যাবে এবং গ্লোবাল রেট ব্যবহার হবে।",
+        f"Current user rate: `{current_rate:.2f} BDT`\n"
+        f"Global rate: `{global_rate:.2f} BDT`\n\n"
+        "Enter the new rate (numbers only, e.g., 0.25):\n"
+        "Entering 0 will remove the custom rate and use the global rate.",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard()
     )
@@ -2053,31 +2051,31 @@ async def admin_set_user_otp_rate_amount(update, context):
     uid = context.user_data.get("admin_set_otp_rate_user")
     if not uid:
         context.user_data["admin_set_otp_rate_mode"] = None
-        await update.message.reply_text("⚠️ সেশন শেষ। আবার চেষ্টা করুন।", reply_markup=system_config_keyboard())
+        await update.message.reply_text("⚠️ Session expired. Please try again.", reply_markup=system_config_keyboard())
         return
     text = update.message.text.strip()
     if text == "❌ CANCEL":
         context.user_data["admin_set_otp_rate_mode"] = None
         context.user_data["admin_set_otp_rate_user"] = None
-        await update.message.reply_text("❌ অপারেশন বাতিল করা হয়েছে।", reply_markup=system_config_keyboard())
+        await update.message.reply_text("❌ Operation cancelled.", reply_markup=system_config_keyboard())
         return
     try:
         rate = float(text)
         if rate < 0:
             raise ValueError
     except:
-        await update.message.reply_text("❌ ভ্যালিড রেট ইনপুট দিন (যেমন: 0.25)!", reply_markup=cancel_keyboard())
+        await update.message.reply_text("❌ Please enter a valid rate (e.g., 0.25)!", reply_markup=cancel_keyboard())
         return
     set_user_otp_rate(uid, rate)
     if rate > 0:
         await update.message.reply_text(
-            f"✅ ইউজার `{uid}` এর জন্য OTP রেট `{rate:.2f} BDT` সেট করা হয়েছে।",
+            f"✅ OTP rate set to `{rate:.2f} BDT` for user `{uid}`.",
             parse_mode="Markdown",
             reply_markup=system_config_keyboard()
         )
     else:
         await update.message.reply_text(
-            f"✅ ইউজার `{uid}` এর কাস্টম OTP রেট মুছে ফেলা হয়েছে। এখন গ্লোবাল রেট `{get_otp_rate():.2f} BDT` প্রযোজ্য হবে।",
+            f"✅ Custom OTP rate removed for user `{uid}`. Global rate `{get_otp_rate():.2f} BDT` will now apply.",
             parse_mode="Markdown",
             reply_markup=system_config_keyboard()
         )
@@ -2088,7 +2086,7 @@ async def admin_view_user_otp_rate_start(update, context):
     context.user_data["admin_view_otp_rate_mode"] = True
     await update.message.reply_text(
         "📋 **VIEW USER OTP RATE**\n\n"
-        "দয়া করে ইউজার আইডি ইনপুট দিন (শুধু সংখ্যা):",
+        "Please enter the User ID (numbers only):",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard()
     )
@@ -2099,14 +2097,14 @@ async def admin_view_user_otp_rate(update, context):
     uid_str = update.message.text.strip()
     if uid_str == "❌ CANCEL":
         context.user_data["admin_view_otp_rate_mode"] = None
-        await update.message.reply_text("❌ অপারেশন বাতিল করা হয়েছে।", reply_markup=system_config_keyboard())
+        await update.message.reply_text("❌ Operation cancelled.", reply_markup=system_config_keyboard())
         return
     if not uid_str.isdigit():
-        await update.message.reply_text("❌ ভ্যালিড ইউজার আইডি দিন (শুধু সংখ্যা)!", reply_markup=cancel_keyboard())
+        await update.message.reply_text("❌ Please enter a valid User ID (numbers only)!", reply_markup=cancel_keyboard())
         return
     uid_int = int(uid_str)
     if not user_exists(uid_int):
-        await update.message.reply_text("❌ এই ইউজারটি রেজিস্টার্ড নয়।", reply_markup=system_config_keyboard())
+        await update.message.reply_text("❌ This user is not registered.", reply_markup=system_config_keyboard())
         context.user_data["admin_view_otp_rate_mode"] = None
         return
     custom_rate = get_user_otp_rate(uid_int)
@@ -2115,12 +2113,12 @@ async def admin_view_user_otp_rate(update, context):
     has_custom = str(uid_int) in rates and rates[str(uid_int)] > 0
     msg = (
         f"📊 **USER OTP RATE INFO**\n"
-        f"🆔 ইউজার: `{uid_int}`\n"
+        f"🆔 User: `{uid_int}`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🎯 কাস্টম রেট: `{custom_rate:.2f} BDT`\n"
-        f"🌐 গ্লোবাল রেট: `{global_rate:.2f} BDT`\n"
+        f"🎯 Custom Rate: `{custom_rate:.2f} BDT`\n"
+        f"🌐 Global Rate: `{global_rate:.2f} BDT`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔹 { 'এই ইউজারের জন্য কাস্টম রেট সক্রিয়।' if has_custom else 'এই ইউজারের জন্য কাস্টম রেট নেই, গ্লোবাল রেট ব্যবহার হবে।' }"
+        f"🔹 { 'Custom rate is active for this user.' if has_custom else 'No custom rate for this user, global rate will be used.' }"
     )
     await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=system_config_keyboard())
     context.user_data["admin_view_otp_rate_mode"] = None
@@ -2134,13 +2132,13 @@ async def admin_show_all_users(update, context):
     all_uids = list(user_db.keys())
     total_users = len(all_uids)
     if total_users == 0:
-        await update.message.reply_text("📊 মোট ইউজার: 0\nকোনো ইউজার রেজিস্টার্ড নেই।", reply_markup=user_management_keyboard())
+        await update.message.reply_text("📊 Total Users: 0\nNo registered users.", reply_markup=user_management_keyboard())
         return
     user_list_sorted = sorted(all_uids, key=int)
     if total_users <= 50:
         lines = [f"{i+1}. `{uid}`" for i, uid in enumerate(user_list_sorted)]
         user_list_text = "\n".join(lines)
-        msg = f"📊 **মোট ইউজার:** `{total_users}`\n\n**ইউজার লিস্ট:**\n{user_list_text}"
+        msg = f"📊 **Total Users:** `{total_users}`\n\n**User List:**\n{user_list_text}"
         await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=user_management_keyboard())
     else:
         content = f"Total Users: {total_users}\n\n" + "\n".join(user_list_sorted)
@@ -2148,7 +2146,7 @@ async def admin_show_all_users(update, context):
         f.name = f"all_users_{total_users}.txt"
         await update.message.reply_document(
             document=f,
-            caption=f"📊 মোট ইউজার: {total_users}\nইউজার আইডি লিস্ট সংযুক্ত।",
+            caption=f"📊 Total Users: {total_users}\nUser ID list attached.",
             reply_markup=user_management_keyboard()
         )
 
@@ -2162,7 +2160,7 @@ async def admin_toggle_payment_methods(update, context):
         buttons.append([InlineKeyboardButton(f"{status} {method}", callback_data=f"toggle_method_{method}")])
     buttons.append([InlineKeyboardButton("🔙 BACK", callback_data="back_to_admin_panel")])
     await update.message.reply_text(
-        "💳 পেমেন্ট মেথড টগল করুন:\n\nসবুজ চিহ্ন মানে সচল, লাল মানে বন্ধ।\nক্লিক করে চেঞ্জ করুন।",
+        "💳 Toggle Payment Methods:\n\nGreen means active, red means disabled.\nClick to change.",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
@@ -2173,8 +2171,8 @@ async def handle_toggle_method_callback(update: Update, context: ContextTypes.DE
     if data.startswith("toggle_method_"):
         method = data.replace("toggle_method_", "")
         new_state = toggle_payment_method(method)
-        status = "সচল ✅" if new_state else "বন্ধ ❌"
-        await query.edit_message_text(f"✅ {method} মেথড এখন {status}।", reply_markup=query.message.reply_markup)
+        status = "Active ✅" if new_state else "Disabled ❌"
+        await query.edit_message_text(f"✅ {method} method is now {status}.", reply_markup=query.message.reply_markup)
         config = load_system_config()
         methods = config["payment_methods"]
         buttons = []
@@ -2192,10 +2190,10 @@ async def admin_add_channel_start(update, context):
     context.user_data["add_channel_mode"] = True
     await update.message.reply_text(
         "➕ **ADD CHANNEL/GROUP**\n\n"
-        "ফরম্যাট: `লিংক|লেবেল` (লেবেল ঐচ্ছিক)\n"
-        "উদাহরণ: `https://t.me/Davil_Earn_Master|📢 আমাদের চ্যানেল`\n"
-        "যদি লেবেল না দেন, তাহলে লিংক থেকে স্বয়ংক্রিয় তৈরি হবে।\n\n"
-        "প্রাইভেট লিংকের জন্য: `লিংক|চ্যাট_আইডি|লেবেল`",
+        "Format: `link|label` (label is optional)\n"
+        "Example: `https://t.me/maxgunsotp|📢 Our Channel`\n"
+        "If you don't provide a label, it will be generated automatically from the link.\n\n"
+        "For private links: `link|chat_id|label`",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard()
     )
@@ -2206,7 +2204,7 @@ async def admin_process_add_channel(update, context):
     text = update.message.text.strip()
     if text == "❌ CANCEL":
         context.user_data["add_channel_mode"] = None
-        await update.message.reply_text("❌ বাতিল করা হয়েছে।", reply_markup=required_channels_keyboard())
+        await update.message.reply_text("❌ Cancelled.", reply_markup=required_channels_keyboard())
         return
     parts = text.split("|")
     link = parts[0].strip()
@@ -2234,7 +2232,7 @@ async def admin_remove_channel_start(update, context):
     context.user_data["remove_channel_mode"] = True
     await update.message.reply_text(
         "❌ **REMOVE CHANNEL/GROUP**\n\n"
-        "দয়া করে যে লিংক বা লেবেল রিমুভ করতে চান তা দিন:",
+        "Please send the link or label you want to remove:",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard()
     )
@@ -2245,7 +2243,7 @@ async def admin_process_remove_channel(update, context):
     text = update.message.text.strip()
     if text == "❌ CANCEL":
         context.user_data["remove_channel_mode"] = None
-        await update.message.reply_text("❌ বাতিল করা হয়েছে।", reply_markup=required_channels_keyboard())
+        await update.message.reply_text("❌ Cancelled.", reply_markup=required_channels_keyboard())
         return
     success, msg = remove_required_channel(text)
     if success:
@@ -2257,63 +2255,59 @@ async def admin_process_remove_channel(update, context):
 async def admin_list_channels(update, context):
     channels = get_all_required_channels()
     if not channels:
-        await update.message.reply_text("📋 কোনো চ্যানেল/গ্রুপ যোগ করা হয়নি।", reply_markup=required_channels_keyboard())
+        await update.message.reply_text("📋 No channels/groups added.", reply_markup=required_channels_keyboard())
         return
-    text = "📋 **বর্তমান চ্যানেল/গ্রুপ লিস্ট:**\n\n"
+    text = "📋 **Current Channel/Group List:**\n\n"
     for i, ch in enumerate(channels, 1):
         link = ch.get("link", "N/A")
         label = ch.get("label", "N/A")
         style = ch.get("style", "primary")
         cid = ch.get("chat_id", "N/A")
-        text += f"{i}. লেবেল: `{label}`\n   লিংক: `{link}`\n   স্টাইল: `{style}`\n   chat_id: `{cid}`\n\n"
+        text += f"{i}. Label: `{label}`\n   Link: `{link}`\n   Style: `{style}`\n   Chat ID: `{cid}`\n\n"
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=required_channels_keyboard())
 
 # ==================== ADMIN PANEL - FAKE OTP ====================
 async def admin_fake_otp_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show fake OTP management menu."""
     await update.message.reply_text(
         "⚡ **FAKE OTP SYSTEM** ⚡\n\n"
-        "এখান থেকে ফেক OTP চালু/বন্ধ এবং সেটিংস পরিবর্তন করতে পারেন।\n"
-        "ফেক OTP গ্রুপে রিয়েল OTP-এর মতো দেখাবে, কিন্তু ইউজারদের ব্যালেন্সে কোনো প্রভাব পড়বে না।",
+        "Here you can start/stop fake OTP and change settings.\n"
+        "Fake OTPs will appear in the group like real OTPs, but will not affect user balances.",
         reply_markup=fake_otp_keyboard()
     )
 
 async def admin_fake_otp_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start fake OTP generation."""
     config = load_fake_otp_config()
     if config.get("running", False):
-        await update.message.reply_text("⚠️ ফেক OTP ইতিমধ্যে চালু আছে।")
+        await update.message.reply_text("⚠️ Fake OTP is already running.")
         return
     config["running"] = True
     save_fake_otp_config(config)
-    await update.message.reply_text("✅ **ফেক OTP চালু করা হয়েছে।**\n\nশীঘ্রই গ্রুপে ফেক OTP আসা শুরু হবে।", reply_markup=fake_otp_keyboard())
+    await update.message.reply_text("✅ **Fake OTP has been started.**\n\nFake OTPs will start appearing in the group soon.", reply_markup=fake_otp_keyboard())
 
 async def admin_fake_otp_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Stop fake OTP generation."""
     config = load_fake_otp_config()
     if not config.get("running", False):
-        await update.message.reply_text("⚠️ ফেক OTP ইতিমধ্যে বন্ধ আছে।")
+        await update.message.reply_text("⚠️ Fake OTP is already stopped.")
         return
     config["running"] = False
     save_fake_otp_config(config)
-    await update.message.reply_text("⏹ **ফেক OTP বন্ধ করা হয়েছে।**", reply_markup=fake_otp_keyboard())
+    await update.message.reply_text("⏹ **Fake OTP has been stopped.**", reply_markup=fake_otp_keyboard())
 
 async def admin_fake_otp_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show settings submenu with options to set service, range, interval, otp digits."""
     config = load_fake_otp_config()
     service = config.get("service", "facebook")
     range_val = config.get("range", "Not set (auto)")
     interval = config.get("interval", 10)
     otp_digits = config.get("otp_digits", 6)
-    status = "✅ চলছে" if config.get("running", False) else "❌ বন্ধ"
+    status = "✅ Running" if config.get("running", False) else "❌ Stopped"
     msg = (
-        f"⚙️ **বর্তমান সেটিংস**\n\n"
-        f"📱 সার্ভিস: `{service}`\n"
-        f"📶 রেঞ্জ: `{range_val}`\n"
-        f"⏱ ইন্টারভ্যাল: `{interval} সেকেন্ড`\n"
-        f"🔢 OTP ডিজিট: `{otp_digits}`\n"
-        f"📊 স্ট্যাটাস: {status}\n\n"
-        "নিচের বাটনগুলোর মাধ্যমে পরিবর্তন করুন:"
+        f"⚙️ **Current Settings**\n\n"
+        f"📱 Service: `{service}`\n"
+        f"📶 Range: `{range_val}`\n"
+        f"⏱ Interval: `{interval} seconds`\n"
+        f"🔢 OTP Digits: `{otp_digits}`\n"
+        f"📊 Status: {status}\n\n"
+        "Change them using the buttons below:"
     )
     keyboard = [
         [KeyboardButton("📱 SET SERVICE")],
@@ -2326,23 +2320,22 @@ async def admin_fake_otp_settings(update: Update, context: ContextTypes.DEFAULT_
     context.user_data["fake_otp_settings_mode"] = True
 
 async def admin_fake_otp_set_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📱 **নতুন সার্ভিসের নাম লিখুন** (যেমন: facebook, instagram, whatsapp, telegram):\n\nবর্তমান: " + load_fake_otp_config().get("service", "facebook"), reply_markup=cancel_keyboard())
+    await update.message.reply_text("📱 **Enter new service name** (e.g., facebook, instagram, whatsapp, telegram):\n\nCurrent: " + load_fake_otp_config().get("service", "facebook"), reply_markup=cancel_keyboard())
     context.user_data["fake_otp_setting"] = "service"
 
 async def admin_fake_otp_set_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📶 **নতুন রেঞ্জ লিখুন** (যেমন: 880XXX) অথবা ফাঁকা রাখতে 'auto' লিখুন (API থেকে রেঞ্জ নেবে):\n\nবর্তমান: " + (load_fake_otp_config().get("range") or "auto"), reply_markup=cancel_keyboard())
+    await update.message.reply_text("📶 **Enter new range** (e.g., 880XXX) or type 'auto' to fetch from API:\n\nCurrent: " + (load_fake_otp_config().get("range") or "auto"), reply_markup=cancel_keyboard())
     context.user_data["fake_otp_setting"] = "range"
 
 async def admin_fake_otp_set_interval(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏱ **নতুন ইন্টারভ্যাল (সেকেন্ড) লিখুন** (শুধু সংখ্যা, যেমন: 10):\n\nবর্তমান: " + str(load_fake_otp_config().get("interval", 10)), reply_markup=cancel_keyboard())
+    await update.message.reply_text("⏱ **Enter new interval (seconds)** (numbers only, e.g., 10):\n\nCurrent: " + str(load_fake_otp_config().get("interval", 10)), reply_markup=cancel_keyboard())
     context.user_data["fake_otp_setting"] = "interval"
 
 async def admin_fake_otp_set_otp_digits(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔢 **OTP ডিজিট সংখ্যা লিখুন** (৪-৮-এর মধ্যে, যেমন: 6):\n\nবর্তমান: " + str(load_fake_otp_config().get("otp_digits", 6)), reply_markup=cancel_keyboard())
+    await update.message.reply_text("🔢 **Enter OTP digit count** (between 4-8, e.g., 6):\n\nCurrent: " + str(load_fake_otp_config().get("otp_digits", 6)), reply_markup=cancel_keyboard())
     context.user_data["fake_otp_setting"] = "otp_digits"
 
 async def admin_fake_otp_process_setting(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process user input for settings."""
     setting = context.user_data.get("fake_otp_setting")
     if not setting:
         return
@@ -2350,21 +2343,21 @@ async def admin_fake_otp_process_setting(update: Update, context: ContextTypes.D
     if text == "❌ CANCEL":
         context.user_data["fake_otp_setting"] = None
         context.user_data["fake_otp_settings_mode"] = False
-        await update.message.reply_text("❌ বাতিল করা হয়েছে।", reply_markup=fake_otp_keyboard())
+        await update.message.reply_text("❌ Cancelled.", reply_markup=fake_otp_keyboard())
         return
     
     config = load_fake_otp_config()
     if setting == "service":
         config["service"] = text.lower()
         save_fake_otp_config(config)
-        await update.message.reply_text(f"✅ সার্ভিস `{text}` সেট করা হয়েছে।", reply_markup=fake_otp_keyboard())
+        await update.message.reply_text(f"✅ Service set to `{text}`.", reply_markup=fake_otp_keyboard())
     elif setting == "range":
         if text.lower() == "auto":
             config["range"] = ""
         else:
             config["range"] = text
         save_fake_otp_config(config)
-        await update.message.reply_text(f"✅ রেঞ্জ `{text}` সেট করা হয়েছে।", reply_markup=fake_otp_keyboard())
+        await update.message.reply_text(f"✅ Range set to `{text}`.", reply_markup=fake_otp_keyboard())
     elif setting == "interval":
         try:
             val = int(text)
@@ -2372,9 +2365,9 @@ async def admin_fake_otp_process_setting(update: Update, context: ContextTypes.D
                 raise ValueError
             config["interval"] = val
             save_fake_otp_config(config)
-            await update.message.reply_text(f"✅ ইন্টারভ্যাল `{val}` সেকেন্ড সেট করা হয়েছে।", reply_markup=fake_otp_keyboard())
+            await update.message.reply_text(f"✅ Interval set to `{val}` seconds.", reply_markup=fake_otp_keyboard())
         except:
-            await update.message.reply_text("❌ ভ্যালিড সংখ্যা দিন (১ বা তার বেশি)।", reply_markup=cancel_keyboard())
+            await update.message.reply_text("❌ Please enter a valid number (1 or greater).", reply_markup=cancel_keyboard())
             return
     elif setting == "otp_digits":
         try:
@@ -2383,9 +2376,9 @@ async def admin_fake_otp_process_setting(update: Update, context: ContextTypes.D
                 raise ValueError
             config["otp_digits"] = val
             save_fake_otp_config(config)
-            await update.message.reply_text(f"✅ OTP ডিজিট `{val}` সেট করা হয়েছে।", reply_markup=fake_otp_keyboard())
+            await update.message.reply_text(f"✅ OTP digits set to `{val}`.", reply_markup=fake_otp_keyboard())
         except:
-            await update.message.reply_text("❌ ৪-৮-এর মধ্যে ভ্যালিড সংখ্যা দিন।", reply_markup=cancel_keyboard())
+            await update.message.reply_text("❌ Please enter a valid number between 4-8.", reply_markup=cancel_keyboard())
             return
     context.user_data["fake_otp_setting"] = None
     context.user_data["fake_otp_settings_mode"] = False
@@ -2401,12 +2394,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text.strip()
     
-    # Fake OTP settings processing
     if context.user_data.get("fake_otp_setting") and is_admin(uid):
         await admin_fake_otp_process_setting(update, context)
         return
     
-    # Withdraw flow
     if context.user_data.get("withdraw_mode") == "select_method":
         await withdraw_method_selected(update, context)
         return
@@ -2417,7 +2408,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await withdraw_number_received(update, context)
         return
     
-    # Admin balance
     if context.user_data.get("add_balance_mode") and is_admin(uid):
         if context.user_data.get("pending_add_user"):
             await process_add_balance_amount(update, context)
@@ -2431,7 +2421,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await process_remove_balance_user(update, context)
         return
     
-    # Admin ban/unban
     if context.user_data.get("admin_ban_mode") and is_admin(uid):
         await process_ban_user(update, context)
         return
@@ -2439,17 +2428,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await process_unban_user(update, context)
         return
     
-    # Admin change min withdraw
     if context.user_data.get("admin_min_withdraw_mode") and is_admin(uid):
         await admin_change_min_withdraw_amount(update, context)
         return
     
-    # Admin change OTP rate
     if context.user_data.get("admin_otp_rate_mode") and is_admin(uid):
         await admin_change_otp_rate_amount(update, context)
         return
 
-    # Admin set user OTP rate
     if context.user_data.get("admin_set_otp_rate_mode") == "user" and is_admin(uid):
         await admin_set_user_otp_rate_user(update, context)
         return
@@ -2457,12 +2443,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await admin_set_user_otp_rate_amount(update, context)
         return
 
-    # Admin view user OTP rate
     if context.user_data.get("admin_view_otp_rate_mode") and is_admin(uid):
         await admin_view_user_otp_rate(update, context)
         return
 
-    # Admin add/remove channel
     if context.user_data.get("add_channel_mode") and is_admin(uid):
         await admin_process_add_channel(update, context)
         return
@@ -2470,7 +2454,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await admin_process_remove_channel(update, context)
         return
     
-    # Fake OTP settings menu navigation (admin)
     if context.user_data.get("fake_otp_settings_mode") and is_admin(uid):
         if text == "📱 SET SERVICE":
             await admin_fake_otp_set_service(update, context)
@@ -2489,14 +2472,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await admin_fake_otp_menu(update, context)
             return
     
-    # CUSTOM RANGE
     if context.user_data.get("mode") == "custom_range":
         context.user_data["mode"] = None
         range_text = text.strip().upper()
         if not re.search(r'\d', range_text):
             await update.message.reply_text(
                 "❌ <b>INVALID RANGE!</b>\n\n"
-                "<blockquote>সঠিক উদাহরণ: <code>234XXX</code> বা <code>26134</code></blockquote>",
+                "<blockquote>Correct example: <code>234XXX</code> or <code>26134</code></blockquote>",
                 parse_mode="HTML",
                 reply_markup=main_keyboard(uid)
             )
@@ -2511,18 +2493,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
         return
     
-    # Ban check
     if not is_admin(uid) and is_user_banned(uid):
         await update.message.reply_text("🚫 YOU ARE BANNED 🚫", reply_markup=main_keyboard(uid))
         return
     
-    # Cancel
     if text == "❌ CANCEL":
         context.user_data.clear()
         await update.message.reply_text("❌ CANCELLED", reply_markup=main_keyboard(uid))
         return
     
-    # Main menu buttons
     if text == "👤 PROFILE":
         user_data = get_user(uid)
         stats = get_user_stats(uid)
@@ -2596,7 +2575,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(support_text, reply_markup=keyboard, parse_mode="Markdown")
         return
     
-    # Admin panel
     if text == "⚙️ ADMIN PANEL ⚙️" and is_admin(uid):
         context.user_data["admin_mode"] = "main"
         await update.message.reply_text(
@@ -2650,7 +2628,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await admin_fake_otp_settings(update, context)
         return
 
-    # Required channels submenu
     if text == "➕ ADD CHANNEL" and context.user_data.get("required_channels_mode") == "main" and is_admin(uid):
         await admin_add_channel_start(update, context)
         return
@@ -2663,7 +2640,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await admin_list_channels(update, context)
         return
     
-    # System config submenu
     if text == "📈 TODAY ALL STATUS" and context.user_data.get("system_config_mode") == "main" and is_admin(uid):
         t_n, t_o, s_n, s_o, tot_n, tot_o = get_global_system_stats()
         msg = (
@@ -2767,13 +2743,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await admin_view_user_otp_rate_start(update, context)
         return
     
-    # Broadcast
     if text == "📢 SEND MESSAGE TO ALL USERS" and is_admin(uid):
         context.user_data["broadcast_mode"] = True
         await update.message.reply_text(
             "📢 <b>ADMIN BROADCAST SYSTEM (PRO)</b>\n\n"
-            "💬 আপনি এখন যা পাঠাবেন (Text, Photo, Video, Document, Voice, Audio, Animation, Sticker) – সকল ইউজারের কাছে প্রফেশনাল হেডারসহ চলে যাবে।\n\n"
-            "✨ রেঞ্জ (যেমন: 237XXX) থাকলে তা অটোমেটিক ক্লিক-টু-কপি হয়ে যাবে।", 
+            "💬 Anything you send now (Text, Photo, Video, Document, Voice, Audio, Animation, Sticker) will be sent to all users with a professional header.\n\n"
+            "✨ Ranges (e.g., 237XXX) will be click-to-copy automatically.", 
             parse_mode="HTML", 
             reply_markup=cancel_keyboard()
         )
@@ -2784,10 +2759,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_db = load_data(USER_DATA_FILE)
         all_uids = list(user_db.keys())
         if not all_uids:
-            await update.message.reply_text("❌ পাঠানোর জন্য কোনো ইউজার পাওয়া যায়নি!")
+            await update.message.reply_text("❌ No users found to send!")
             return
         success_ids, fail_ids = [], []
-        status_msg = await update.message.reply_text(f"🚀 <b>ব্রডকাস্ট শুরু হয়েছে...</b>\n🎯 টার্গেট: {len(all_uids)} জন ইউজার।", parse_mode="HTML")
+        status_msg = await update.message.reply_text(f"🚀 <b>Broadcast started...</b>\n🎯 Target: {len(all_uids)} users.", parse_mode="HTML")
         def format_broadcast_caption(caption_text):
             if not caption_text:
                 return "<blockquote>📢 <b>ADMIN NOTICE :</b></blockquote>"
@@ -2865,7 +2840,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     except:
                         await context.bot.send_message(
                             chat_id=target_id,
-                            text="📢 <b>ADMIN NOTICE :</b>\n\nআপনার জন্য একটি নতুন বার্তা আছে, কিন্তু এটি প্রদর্শন করা সম্ভব হয়নি।",
+                            text="📢 <b>ADMIN NOTICE :</b>\n\nYou have a new message, but it could not be displayed.",
                             parse_mode="HTML"
                         )
                 success_ids.append(user_id_str)
@@ -2962,8 +2937,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if channels:
         user_data = get_user(uid)
         if not user_data.get("verified", False):
-            msg = "🔐 **ভেরিফিকেশন প্রয়োজন**\n\n"
-            msg += "নিচের প্রতিটি চ্যানেল/গ্রুপে জয়েন হয়ে তারপর **Verify** বাটন ক্লিক করুন:\n\n"
+            msg = "🔐 **Verification Required**\n\n"
+            msg += "Please join each of the channels/groups below and then click the **Verify** button:\n\n"
             keyboard_buttons = []
             for ch in channels:
                 link = ch.get("link", "")
@@ -3018,19 +2993,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🚫 YOU ARE BANNED 🚫")
         return
     
-    # SERVICE SELECTION
     if data.startswith("svc_"):
         service = data[4:]
         services = await fetch_services_cached()
-        # ===== UPDATED: এখন ৪টি সার্ভিস ফিল্টার =====
         allowed = ["facebook", "instagram", "whatsapp", "telegram"]
         services = {k: v for k, v in services.items() if k in allowed}
         if service not in services:
-            await query.answer("এই সার্ভিস বর্তমানে উপলব্ধ নেই।", show_alert=True)
+            await query.answer("This service is currently unavailable.", show_alert=True)
             return
         ranges = services[service]
         if not ranges:
-            await query.answer("এই সার্ভিসের জন্য কোনো রেঞ্জ উপলব্ধ নেই।", show_alert=True)
+            await query.answer("No ranges available for this service.", show_alert=True)
             return
         context.user_data["la_service"] = service
         context.user_data["la_ranges"] = ranges
@@ -3038,13 +3011,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(
             f"📡✨ {service.upper()} - AVAILABLE COUNTRIES ✨📡\n\n"
             f"<blockquote>📱 Service: <b>{html.escape(service)}</b></blockquote>\n"
-            f"<blockquote>🌍 হট দেশগুলো (🔥) আগে দেখানো হয়েছে:</blockquote>",
+            f"<blockquote>🌍 Hot countries (🔥) shown first:</blockquote>",
             parse_mode="HTML",
             reply_markup=keyboard
         )
         return
     
-    # HOT RANGE SELECTION
     if data.startswith("hot_range_"):
         parts = data.split("_")
         if len(parts) < 3:
@@ -3056,14 +3028,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await fast_allocate_number(query, context, rid, service, range_display)
         return
     
-    # CUSTOM RANGE
     if data == "custom_range":
         context.user_data["mode"] = "custom_range"
         await query.message.edit_text(
             "⚙️ <b>CUSTOM RANGE</b>\n\n"
-            "<blockquote>📶 আপনার কাস্টম range টাইপ করুন।\n"
-            "উদাহরণ: <code>234XXX</code> বা <code>26134</code></blockquote>\n\n"
-            "<blockquote>⌨️ নিচে range লিখে Send করুন:</blockquote>",
+            "<blockquote>📶 Type your custom range.\n"
+            "Example: <code>234XXX</code> or <code>26134</code></blockquote>\n\n"
+            "<blockquote>⌨️ Send the range below:</blockquote>",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("◀️ BACK", callback_data="back_services", style="danger")
@@ -3071,24 +3042,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # BACK TO SERVICES
     if data == "back_services":
         services = await fetch_services_cached()
         allowed = ["facebook", "instagram", "whatsapp", "telegram"]
         services = {k: v for k, v in services.items() if k in allowed}
         if not services:
-            await query.message.edit_text("❌ কোনো সার্ভিস উপলব্ধ নেই।")
+            await query.message.edit_text("❌ No services available.")
             return
         keyboard = _build_services_keyboard(services)
         await query.message.edit_text(
             "📡✨ 𝗦𝗘𝗟𝗘𝗖𝗧 𝗬𝗢𝗨𝗥 𝗦𝗘𝗥𝗩𝗜𝗖𝗘 ✨📡\n\n"
-            "<blockquote>📱 নিচ থেকে একটি <b>Service</b> সিলেক্ট করুন:</blockquote>",
+            "<blockquote>📱 Select a <b>Service</b> below:</blockquote>",
             parse_mode="HTML",
             reply_markup=keyboard
         )
         return
     
-    # SAME RANGE (fixed)
     if data.startswith("same_range_"):
         parts = data.split("_")
         if len(parts) < 3:
@@ -3107,8 +3076,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         if not num:
             await query.message.reply_text(
-                "❌ <b>এই রেঞ্জে বর্তমানে কোনো নম্বর নেই!</b>\n\n"
-                "<blockquote>⚠️ দয়া করে অন্য রেঞ্জ নির্বাচন করুন বা পরে আবার চেষ্টা করুন।</blockquote>",
+                "❌ <b>No numbers available in this range currently!</b>\n\n"
+                "<blockquote>⚠️ Please choose another range or try again later.</blockquote>",
                 parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("◀️ BACK TO SERVICES", callback_data="back_services", style="danger")
@@ -3130,13 +3099,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         new_keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🔄 SAME RANGE", callback_data=f"same_range_{rid}_{service}", style="success")],
-            [InlineKeyboardButton("📢 OTP GROUP", url="https://t.me/Davil_Otp_Group", style="primary")],
+            [InlineKeyboardButton("📢 OTP GROUP", url="https://t.me/maxgunsotp", style="primary")],
             [InlineKeyboardButton("◀️ BACK", callback_data="back_to_services")]
         ])
         await query.message.reply_text(text, parse_mode="HTML", reply_markup=new_keyboard)
         return
     
-    # WITHDRAW
     if data == "withdraw_start":
         balance = get_user(uid)['balance']
         config = load_system_config()
@@ -3167,7 +3135,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await admin_reject_withdraw(update, context, data.replace("admin_reject_", ""))
         return
     
-    # BACK BUTTONS
     if data == "back_to_main":
         await query.edit_message_text("🔙 Returning to main menu...")
         await query.message.chat.send_message(
@@ -3182,18 +3149,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         allowed = ["facebook", "instagram", "whatsapp", "telegram"]
         services = {k: v for k, v in services.items() if k in allowed}
         if not services:
-            await query.edit_message_text("❌ কোনো সার্ভিস উপলব্ধ নেই।")
+            await query.edit_message_text("❌ No services available.")
             return
         keyboard = _build_services_keyboard(services)
         await query.edit_message_text(
             "📡✨ 𝗦𝗘𝗟𝗘𝗖𝗧 𝗬𝗢𝗨𝗥 𝗦𝗘𝗥𝗩𝗜𝗖𝗘 ✨📡\n\n"
-            "<blockquote>✨ নিচ থেকে আপনার পছন্দের <b>Service</b> নির্বাচন করুন:</blockquote>",
+            "<blockquote>✨ Select your preferred <b>Service</b> below:</blockquote>",
             parse_mode="HTML",
             reply_markup=keyboard
         )
         return
     
-    # Handle toggle payment methods callback
     if data.startswith("toggle_method_"):
         await handle_toggle_method_callback(update, context)
         return
@@ -3203,7 +3169,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.chat.send_message("⚙️ System Configuration:", reply_markup=system_config_keyboard())
         return
     
-    # COPY / MISC
     if data.startswith("copy_id_"):
         await query.answer(f"✅ Copied ID: {data.replace('copy_id_', '')}", show_alert=True)
         return
@@ -3271,13 +3236,9 @@ async def post_init(application):
     asyncio.create_task(monitor_loop(application))
     asyncio.create_task(fake_otp_loop(application))
 
-# ================================================================
-# ============== 🔥 এখানে শুধু main() ফাংশনটি Webhook অনুযায়ী পরিবর্তন করা হয়েছে ==============
-# ================================================================
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).concurrent_updates(True).post_init(post_init).build()
 
-    # ========== হ্যান্ডলারগুলো (আগের মতোই) ==========
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("get1number", get1number_command))
     app.add_handler(CommandHandler("searchotp", searchotp_command))
@@ -3288,22 +3249,19 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    # ========== ওয়েবহুক কনফিগারেশন ==========
     port = int(os.environ.get("PORT", 8080))
     webhook_url = os.environ.get("WEBHOOK_URL")
 
-    # Render-এ RENDER_EXTERNAL_URL স্বয়ংক্রিয় সেট থাকে
     if not webhook_url:
         external_url = os.environ.get("RENDER_EXTERNAL_URL")
         if external_url:
             webhook_url = f"{external_url}/webhook"
         else:
-            # লোকাল বা অন্য কোনো পরিবেশে পোলিং ব্যাকআপ
-            print("⚠️ WEBHOOK_URL সেট নেই, পোলিং মোডে চলছে...")
+            print("⚠️ WEBHOOK_URL not set, running in polling mode...")
             app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
             return
 
-    print(f"🚀 বট ওয়েবহুক মোডে চালু হচ্ছে: {webhook_url}")
+    print(f"🚀 Bot starting in webhook mode: {webhook_url}")
     app.run_webhook(
         listen="0.0.0.0",
         port=port,
